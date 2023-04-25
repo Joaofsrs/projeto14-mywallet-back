@@ -146,4 +146,14 @@ server.get("/home", async (req, res) => {
     }
 
 });
+
+server.delete("/delete/:token", async (req, res) => {
+    const { token } = req.params;
+    try{
+        const result = await db.collection("sessions").deleteOne({ token })
+        if(result.deletedCount === 0) return res.sendStatus(404);
+    }catch (err) {
+        res.status(500).send({ message: err.message });
+    }
+});
 server.listen(5000);
