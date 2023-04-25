@@ -18,4 +18,6 @@ mongoClient.connect()
     .then(() => db = mongoClient.db())
     .catch((err) => console.log(err.message));
 
-server.listen(5000);
+const port = process.env.PORT || 5000;
+
+server.listen(port);
