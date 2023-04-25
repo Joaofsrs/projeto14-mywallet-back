@@ -3,6 +3,7 @@ import cors from "cors";
 import { MongoClient } from "mongodb";
 import dotenv from "dotenv";
 import joi from "joi";
+import dayjs from "dayjs"
 import bcrypt from "bcrypt";
 import { v4 as uuid } from 'uuid';
 
@@ -20,13 +21,17 @@ mongoClient.connect()
     .catch((err) => console.log(err.message));
 
 server.post('/cadastro', async (req, res) => {
-    const { name, email, password } = req.body; 
+    const { name, email, password, confirmPassword } = req.body; 
 
     const userSchema = joi.object({
         name: joi.string().required(),
         email: joi.string().email().required(),
-        password: joi.string().min(3).required()
+        password: joi.string().min(3).required(),
+        confirmPassword: joi.string().min(3).required()
     });
+    if(password !== confirmPassword){
+        return res.status(422).send("Password and confirm password is different");
+    }
     const validation = userSchema.validate(req.body,{ abortEarly: false });
     if (validation.error) {
         return res.status(422).send(validation.error.details.map(detail => detail.message));
@@ -58,6 +63,7 @@ server.post("/", async (req, res) => {
         email: joi.string().email().required(),
         password: joi.string().required()
     }); 
+    console.log(req.body)
     const validation = userSchema.validate(req.body,{ abortEarly: false });
     if (validation.error) {
         return res.status(422).send(validation.error.details.map(detail => detail.message));
@@ -82,11 +88,11 @@ server.post("/nova-transacao/:tipo", async (req, res) => {
     const { authorization } = req.headers;
     const token = authorization?.replace('Bearer ', '');
     const type = req.params.tipo;
-    const { value, descriprition } = req.body;
+    const { value, description } = req.body;
 
     const typeSchema = joi.object({
         value: joi.number().precision(2).required(),
-        descriprition: joi.string().required()
+        description: joi.string().required()
     });
 
     try{
@@ -107,8 +113,9 @@ server.post("/nova-transacao/:tipo", async (req, res) => {
         const transaction = {
             userId: session.userId,
             value: value,
-            descriprition: descriprition,
-            type: type
+            description: description,
+            type: type,
+            day: dayjs().format('DD/MM') 
         }
         await db.collection('transactions').insertOne(transaction);   
         res.sendStatus(200);
@@ -132,7 +139,8 @@ server.get("/home", async (req, res) => {
             return res.sendStatus(401)
         }
         const transactions = await db.collection('transactions').find({userId: session.userId}).toArray();   
-        res.send(transactions);
+        const user = await db.collection('users').findOne({ _id: session.userId });
+        res.send({transactions, userName: user.name});
     }catch(err){
         res.sendStatus(500);
     }
